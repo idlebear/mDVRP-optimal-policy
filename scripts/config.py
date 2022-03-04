@@ -8,8 +8,8 @@ SERVICE_TIME=0
 TICK_TIME = 0.01
 
 POLICY_NAME = "RND_NO_RETURN"
-POLICY_NAME = "TSP"
-# POLICY_NAME = "TSP_MOD"
+# POLICY_NAME = "TSP"
+POLICY_NAME = "TSP_MOD"
 
 # simulation environment configs
 

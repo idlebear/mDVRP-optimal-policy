@@ -6,7 +6,7 @@ def euc_distance(task1, task2):
         (task1[0] - task2[0])**2 + (task1[1] - task2[1])**2
     )
 
-def get_ditance_matrix(actors, tasks):
+def get_distance_matrix(actors, tasks):
     task_locations = []
     task_indices = []
     for actor in actors:
