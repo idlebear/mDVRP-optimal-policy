@@ -1,6 +1,7 @@
 from config import SERVICE_TIME
 import numpy as np
 from enum import Enum
+from time import time
 
 
 class ServiceState(Enum):
@@ -33,7 +34,7 @@ class Task:
         return False
 
     def to_string(self):
-        return f'{self.id},{self.location[0]},{self.location[1]},{self.time},{self.time_serviced},{self.initial_wait}'
+        return f'{time()},{self.id},{self.cluster_id},{self.location[0]},{self.location[1]},{self.time},{self.time_serviced},{self.initial_wait}'
 
     def wait_time(self):
         if self.time_serviced == -1:

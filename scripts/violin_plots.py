@@ -15,19 +15,30 @@ mpl.use('pdf')
 # import scienceplots
 # plt.style.use(['science', 'ieee'])
 
+SEPARATE_ROBOTS = True
+USE_MONTREAL_DATA = True
+
+FIRST_ROW = 0
+FINAL_ROW = 6000
+
 # width as measured in inkscape
 width = 8  # 3.487
-height = width / 1.5
-
-USE_MONTREAL_DATA = True
-ROBOTS = 6
+if SEPARATE_ROBOTS:
+    # height = width * 2
+    height = width / 1.5
+else:
+    height = width / 1.5
+    RHOS = [0.5, 0.6, 0.7, 0.8, 0.9]
 
 if USE_MONTREAL_DATA:
-    HEADER_STR = "DeliveryLog_montreal_six"
+    HEADER_STR = "DeliveryLog_m6_rho99"
     OUTPUT_PREFIX = "Montreal_RAL"
+    ROBOTS = 6
 else:
     HEADER_STR = "DeliveryLog_ral"
     OUTPUT_PREFIX = "RAL"
+    ROBOTS = 1
+
 HEADER_SUBSTR = ""
 
 
@@ -40,21 +51,57 @@ def export_table2(df, hues):
     print('\\caption{Mean, Median and Average Task Wait Times (m)}')
     print('\\label{table:task-time-data}')
     print('\\begin{center}')
-    print('\\begin{tabular}{@{} l  c c c  c c c  c c c  c c c  c c c @{}}')
+
+    column_str = '\\begin{tabular}{@{} l'
+    heading_str = ' '
+    heading2_str = 'Method '
+    if SEPARATE_ROBOTS:
+        for r in range(ROBOTS):
+            column_str += ' c c '
+            heading_str += f'& \\multicolumn{{2}}{{c}}{r+1} '
+            heading2_str += ' & Mean\\rpm $\\sigma$ & 95\% '
+
+        column_str += ' c c '
+        heading_str += f'& \\multicolumn{{2}}{{c}}{{Unified}}'
+        heading2_str += ' & Mean\\rpm $\\sigma$ & 95\% '
+    else:
+        for rho in RHOS:
+            column_str += ' c c '
+            heading_str += f'& \\multicolumn{{2}}{{c}}{rho} '
+            heading2_str += ' & Mean\\rpm $\\sigma$ & 95\% '
+    column_str += ' @{}}'
+    heading_str += ' \\\\'
+    heading2_str += ' \\\\'
+
+    print(column_str)
     print('\\toprule')
-    print(' & \\multicolumn{3}{c}{$\\rho=0.5$} & \\multicolumn{3}{c}{$\\rho=0.6$} & \\multicolumn{3}{c}{$\\rho=0.7$} & \\multicolumn{3}{c}{$\\rho=0.8$} & \\multicolumn{3}{c}{$\\rho=0.9$} \\\\')
-    print('Method & Mean  & $\\sigma$ & 95\% & Mean  & $\\sigma$ & 95\% & Mean  & $\\sigma$ & 95\% & Mean  & $\\sigma$ & 95\% & Mean & $\\sigma$ & 95\% \\\\')
+    print(heading_str)
+    print(heading2_str)
+
     print('\\midrule')
 
     for index, hue in enumerate(hues):
         s = hue
-        for rho in [0.5, 0.6, 0.7, 0.8, 0.9]:
-            df_slice = df[(df['Solver'] == hue) & (df['rho'] == rho)]
-            if USE_MONTREAL_DATA:
+        rho = 0.9
+        if SEPARATE_ROBOTS:
+            for robot in range(1, ROBOTS+1):
+                # df_slice = df[(df['Solver'] == hue) & (df['cluster'] == robot) & (df['rho'] == rho)]
+                df_slice = df[(df['Solver'] == hue) & (df['cluster_remap'] == robot)]
                 s += ' & ' + \
-                    f"{(df_slice['wait_minutes'].mean()):5.1f} & {(df_slice['wait_minutes'].std()):5.1f} & {(df_slice['wait_minutes'].quantile(q=0.95)):5.1f}"
-            else:
-                s += ' & ' + f"{(df_slice['Wait Time'].mean()):5.1f} & {(df_slice['Wait Time'].std()):5.1f} & {(df_slice['Wait Time'].quantile(q=0.95)):5.1f}"
+                    f"{round(df_slice['wait_minutes'].mean())}\\rpm{round(df_slice['wait_minutes'].std())} & {round(df_slice['wait_minutes'].quantile(q=0.95))}"
+            # df_slice = df[(df['Solver'] == hue) & (df['rho'] == rho)]
+            df_slice = df[(df['Solver'] == hue)]
+            s += '& ' + \
+                f"{round(df_slice['wait_minutes'].mean())}\\rpm{round(df_slice['wait_minutes'].std())} & {round(df_slice['wait_minutes'].quantile(q=0.95))}"
+        else:
+            for rho in RHOS:
+                df_slice = df[(df['Solver'] == hue) & (df['rho'] == rho)]
+                if USE_MONTREAL_DATA:
+                    s += ' & ' + \
+                        f"{(df_slice['wait_minutes'].mean()):5.1f} \\rpm {(df_slice['wait_minutes'].std()):5.1f} & {(df_slice['wait_minutes'].quantile(q=0.95)):5.1f}"
+                else:
+                    s += ' & ' + \
+                        f"{(df_slice['Wait Time'].mean()):5.1f} \\rpm {(df_slice['Wait Time'].std()):5.1f} & {(df_slice['Wait Time'].quantile(q=0.95)):5.1f}"
         s += "\\\\"
         print(s)
         if index == 1:
@@ -82,15 +129,21 @@ def export_table(df, hues):
     print('\\toprule')
     print('$\\rho$ & Method & Mean & Median & $\\sigma$ & 95\% \\\\')
 
-    for rho in [0.5, 0.6, 0.7, 0.8, 0.9]:
-        print('\\midrule')
-        rho_str = str(rho)
-        for hue in hues:
-            df_slice = df[(df['Solver'] == hue) & (df['rho'] == rho)]
-            if USE_MONTREAL_DATA:
+    if USE_MONTREAL_DATA:
+        for cluster in range(ROBOTS):
+            print('\\midrule')
+            rho_str = str(cluster)
+            for hue in hues:
+                df_slice = df[(df['Solver'] == hue) & (df['cluster'] == cluster)]
                 print(
                     f"{rho_str} & {hue} & {(df_slice['wait_minutes'].mean()):5.1f} & {(df_slice['wait_minutes'].median()):5.1f} & {(df_slice['wait_minutes'].std()):5.1f} & {(df_slice['wait_minutes'].quantile(q=0.95)):5.1f} \\\\")
-            else:
+            rho_str = ''
+    else:
+        for rho in [0.5, 0.6, 0.7, 0.8, 0.9]:
+            print('\\midrule')
+            rho_str = str(rho)
+            for hue in hues:
+                df_slice = df[(df['Solver'] == hue) & (df['rho'] == rho)]
                 print(
                     f"{rho_str} & {hue} & {(df_slice['Wait Time'].mean()):5.1f} & {(df_slice['Wait Time'].median()):5.1f} & {(df_slice['Wait Time'].std()):5.1f} & {(df_slice['Wait Time'].quantile(q=0.95)):5.1f} \\\\")
             rho_str = ''
@@ -150,6 +203,10 @@ def plot_comparison(files, mode='baselines'):
         if HEADER_STR in f and HEADER_SUBSTR in f:
             # if 'DeliveryLog' in f and 'icra_v6_lkh_batch_trp' in f:       # ICRA/OLD data
             df = pd.read_csv(f)
+
+            # slice the rows we want
+            df = df.loc[FIRST_ROW:FINAL_ROW]
+
             try:
                 df['cost-exponent'] = df['cost_exponent']
             except KeyError:
@@ -190,6 +247,12 @@ def plot_comparison(files, mode='baselines'):
 
     df = pd.concat(df_list, ignore_index=True, sort=False)
 
+    if SEPARATE_ROBOTS:
+        cluster_map = [1, 5, 6, 2, 3, 4]
+        df['cluster_remap'] = 0
+        for cluster, cluster_remap in enumerate(cluster_map):
+            df.loc[df['cluster'] == cluster, 'cluster_remap'] = int(cluster_remap)
+
     graphs = [(0.5, 0.9, 'high')]
     # graphs = [(0.5, 0.7, 'high')]
     # graphs = [(0.7, 0.7, 'high')]
@@ -199,7 +262,7 @@ def plot_comparison(files, mode='baselines'):
         if USE_MONTREAL_DATA:
             colours = [
                 'darkorange',
-                'wheat',
+                # 'wheat',
                 'lightsteelblue',
                 'royalblue',
                 'lavender',
@@ -213,7 +276,7 @@ def plot_comparison(files, mode='baselines'):
 
             hue_order = [
                 '$\mathtt{PROPOSED}$',
-                '$\mathtt{PROPOSED}$ $\eta$=$0.2$',
+                # '$\mathtt{PROPOSED}$ $\eta$=$0.2$',
                 '$c^2$-$\mathtt{EVENT}$',
                 '$\mathtt{BATCH}$',
                 '$\mathtt{DC}$-$\mathtt{BATCH}$',
@@ -344,11 +407,14 @@ def plot_comparison(files, mode='baselines'):
     for style in styles:
         for l, h, label in graphs:
             sb.set_style(style="whitegrid")
-            fig, ax = plt.subplots()
+            if SEPARATE_ROBOTS:
+                fig, ax = plt.subplots()
+                # fig, ax = plt.subplots(ROBOTS, 1)
+                # fig, ax = plt.subplots()
+            else:
+                fig, ax = plt.subplots()
             fig.subplots_adjust(left=.15, bottom=.16, right=.99, top=.97)
 
-            # for df in df_list:
-            df_slice = df[(df['rho'] >= l) * (df['rho'] <= h)]
             # sb.lineplot(x='lambda', y=col, hue='display-name', data=df_slice, palette=colours, linewidth=2.5)
             # if style == 'Violins':
             #     sb.violinplot(x='lambda', y='Wait Time', hue='Solver', hue_order=hue_order, data=df_slice, cut=0,
@@ -357,32 +423,65 @@ def plot_comparison(files, mode='baselines'):
             if style == 'Box':
                 flierprops = dict(marker='o', markerfacecolor='grey', markersize=2, alpha=.5,
                                   linestyle='none')
-                if USE_MONTREAL_DATA:
-                    sb.boxplot(x='rho', y='wait_minutes', hue='Solver', hue_order=hue_order, data=df_slice,  showfliers=False, whis=1,
+                if SEPARATE_ROBOTS:
+                    # for robot in range(ROBOTS):
+                    #     df_slice = df[df['cluster'] == robot]
+                    #     sb.boxplot(ax=ax[robot], x='rho', y='wait_minutes', hue='Solver', hue_order=hue_order, data=df_slice,  showfliers=False, whis=0,
+                    #                showmeans=True, palette=colours, flierprops=flierprops)
+                    #     ax[robot].set_ylim([-1, 700])
+                    #     ax[robot].set_xlabel("$\\rho$", fontsize=20)
+                    df_slice = df  # df[df['rho'] == 0.9]
+                    sb.boxplot(x='cluster_remap', y='wait_minutes', hue='Solver', hue_order=hue_order, data=df_slice,  showfliers=False, whis=[5, 95],
                                showmeans=True, palette=colours, flierprops=flierprops)
-                    ax.set_ylim([-1, 1200])
+                    ax.set_ylim([-1, 2700])
+                    ax.set_xlabel("Cluster", fontsize=20)
                 else:
-                    sb.boxplot(x='rho', y='Wait Time', hue='Solver', hue_order=hue_order, data=df_slice,  showfliers=False, whis=1,
-                               showmeans=True, palette=colours, flierprops=flierprops)
-                    ax.set_ylim([-1, 120])
+                    df_slice = df[(df['rho'] >= l) * (df['rho'] <= h)]
+                    if USE_MONTREAL_DATA:
+                        sb.boxplot(x='rho', y='wait_minutes', hue='Solver', hue_order=hue_order, data=df_slice,  showfliers=False, whis=0,
+                                   showmeans=True, palette=colours, flierprops=flierprops)
+                        ax.set_ylim([-1, 700])
+                        ax.set_xlabel("$\\rho$", fontsize=20)
+                    else:
+                        sb.boxplot(x='rho', y='Wait Time', hue='Solver', hue_order=hue_order, data=df_slice,  showfliers=False, whis=1,
+                                   showmeans=True, palette=colours, flierprops=flierprops)
+                        ax.set_ylim([-1, 120])
+                        ax.set_xlabel("$\\rho$", fontsize=20)
                 # sb.boxplot(x='rho', y='normalized-wait', hue='Solver', hue_order=hue_order, data=df_slice,  showfliers=False,
                 #            showmeans=True, palette=colours, flierprops=flierprops, whis=0)
                 # ax.set_ylim([0, 2])
 
-            ax.set_xlabel("$\\rho$", fontsize=20)
-            if USE_MONTREAL_DATA:
+            if SEPARATE_ROBOTS:
                 ax.set_ylabel("Wait Time (m)", fontsize=20)
+                ax.tick_params(axis='both', which='major', labelsize=16)
+                handles, labels = ax.get_legend_handles_labels()
+                # ax.set_yscale('log')
+                ax.legend(handles=handles, labels=labels, loc='upper left', title='Method/Exponent', title_fontsize=18, fontsize=16)
+                # for robot in range(ROBOTS):
+                #     ax[robot].set_ylabel("Time (m)", fontsize=20)
+                #     ax[robot].tick_params(axis='both', which='major', labelsize=16)
+                #     handles, labels = ax[robot].get_legend_handles_labels()
+                #     # ax.set_yscale('log')
+                #     # ax[robot].legend(handles=handles, labels=labels, loc='upper left', title='Method/Exponent', title_fontsize=18, fontsize=16)
             else:
-                ax.set_ylabel("Wait Time (s)", fontsize=20)
-            # ax.set_ylabel("vs. BATCH Baseline", fontsize=20)
+                if USE_MONTREAL_DATA:
+                    ax.set_ylabel("Wait Time (m)", fontsize=20)
+                else:
+                    ax.set_ylabel("Wait Time (s)", fontsize=20)
+                ax.tick_params(axis='both', which='major', labelsize=16)
+              # ax.set_ylabel("vs. BATCH Baseline", fontsize=20)
 
-            ax.tick_params(axis='both', which='major', labelsize=16)
-            handles, labels = ax.get_legend_handles_labels()
-            # ax.set_yscale('log')
+                handles, labels = ax.get_legend_handles_labels()
+                # ax.set_yscale('log')
 
-            ax.legend(handles=handles, labels=labels, loc='upper left', title='Method/Exponent', title_fontsize=18, fontsize=16)
+                ax.legend(handles=handles, labels=labels, loc='upper left', title='Method/Exponent', title_fontsize=18, fontsize=16)
+
             fig.set_size_inches(width, height)
-            fig.savefig(OUTPUT_PREFIX+'_'+style+'_'+mode+'_plot_lamda_{}_{}.pdf'.format('WaitTime', label))
+            if SEPARATE_ROBOTS:
+                separated = '_separated_'
+            else:
+                separated = ''
+            fig.savefig(OUTPUT_PREFIX+separated+'_'+style+'_'+mode+'_plot_lamda_{}_{}.pdf'.format('WaitTime', label))
 
     # export_table(df, hues=hue_order)
     export_table2(df, hues=hue_order)

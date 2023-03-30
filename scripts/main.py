@@ -158,7 +158,7 @@ def multiple_sims(args):
     delivery_log_str = 'DeliveryLog_' + results_str
     delivery_log_name = path.join(RESULTS_DIR, delivery_log_str)
     delivery_log = open(delivery_log_name, 'w')
-    delivery_log.write('id,px,py,t_arrive,t_service,t_initial\n')
+    delivery_log.write('time,id,cluster,px,py,t_arrive,t_service,t_initial\n')
     delivery_log.flush()
 
     if args.initial_tasks < 0:

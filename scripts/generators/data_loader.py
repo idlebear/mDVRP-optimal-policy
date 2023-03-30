@@ -128,10 +128,12 @@ class DataLoader():
         self.field = DataField(self.tasks, self.distances, self.centralized)
 
     def draw(self):
-        v = []
+        # cluster = self.gen.integers(self.field.count)
+        # df_slice = self.tasks.loc[(self.tasks['CLUSTER'] == cluster) & (self.tasks['DEPOT'] == False)]
+        # row_index = self.gen.integers(len(df_slice))
         row_index = self.gen.integers(self.field.count, len(self.tasks))
         row = self.tasks.iloc[row_index]
-        return row_index, (row['X'], row['Y']), row['CLUSTER']
+        return row.name, (row['X'], row['Y']), row['CLUSTER']
 
     def draw_tasks(self, lam):
 
@@ -197,7 +199,7 @@ class DataLoader():
         closest_row = None
         closest_index = None
         closest_dist = np.inf
-        local_tasks = self.tasks.loc[self.tasks['CLUSTER']==cluster]
+        local_tasks = self.tasks.loc[self.tasks['CLUSTER'] == cluster]
         for index, row in local_tasks.iterrows():
             dx = x - row['X']
             dy = y - row['Y']
